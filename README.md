@@ -1,6 +1,10 @@
 # Nyaya.ai - Legal AI Assistant
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-nyaya--ai--main.vercel.app-000000?style=for-the-badge&logo=vercel)](https://nyaya-ai-main.vercel.app)
+
 A comprehensive legal AI assistant platform specializing in Indian law, built with Next.js, Supabase, and Puter.js AI.
+
+Live demo: [https://nyaya-ai-main.vercel.app](https://nyaya-ai-main.vercel.app)
 
 ## Features
 

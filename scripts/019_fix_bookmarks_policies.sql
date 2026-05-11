@@ -13,6 +13,10 @@ CREATE POLICY "Users can create their own bookmarks" ON bookmarks
 CREATE POLICY "Users can delete their own bookmarks" ON bookmarks
     FOR DELETE USING (auth.uid() = user_id);
 
+-- Ensure the roles used by the app can reach the table and let RLS do the filtering
+GRANT SELECT, INSERT, DELETE ON bookmarks TO authenticated;
+GRANT SELECT, INSERT, DELETE ON bookmarks TO service_role;
+
 
 
 

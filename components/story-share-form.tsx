@@ -76,88 +76,41 @@ export default function StoryShareForm({ categories, user }: StoryShareFormProps
     setMessage(null)
 
     try {
-      let userId = null
-      let authorName = 'Anonymous User'
+      const authorName = !isAnonymous
+        ? user?.user_metadata?.full_name || user?.email || 'User'
+        : 'Anonymous User'
 
-      if (user && !isAnonymous) {
-        // User is logged in and doesn't want to be anonymous
-        // Use existing user profile or create one with their name
-        const { data: existingProfile, error: profileCheckError } = await supabase
-          .from('user_profiles')
-          .select('id, full_name')
-          .eq('id', user.id)
-          .single()
-
-        if (existingProfile) {
-          userId = existingProfile.id
-          authorName = existingProfile.full_name || user.user_metadata?.full_name || 'User'
-        } else {
-          // Create profile for logged-in user
-          const { data: profileData, error: profileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              id: user.id,
-              full_name: user.user_metadata?.full_name || 'User',
-              location: formData.location || 'Unknown',
-              profession: 'Story Author'
-            })
-            .select('id, full_name')
-            .single()
-
-          if (profileError) {
-            console.error('Error creating user profile:', profileError)
-            throw new Error(`Failed to create user profile: ${profileError.message}`)
-          }
-          
-          userId = profileData.id
-          authorName = profileData.full_name
-        }
-      } else {
-        // Anonymous story - create temporary profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            full_name: 'Anonymous User',
-            location: formData.location || 'Unknown',
-            profession: 'Story Author'
-          })
-          .select('id')
-          .single()
-
-        if (profileError) {
-          console.error('Error creating user profile:', profileError)
-          throw new Error(`Failed to create user profile: ${profileError.message}`)
-        }
-        
-        userId = profileData.id
-        authorName = 'Anonymous User'
+      if (!user?.id) {
+        throw new Error('You must be signed in to share a story.')
       }
 
-      // Insert the story
-      const { data: storyData, error: storyError } = await supabase
-        .from('legal_stories')
-        .insert({
-          user_id: userId,
+      const response = await fetch('/api/stories/share', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           title: formData.title,
           content: formData.content,
           case_type: formData.case_type,
           location: formData.location,
           outcome: formData.outcome,
           is_anonymous: isAnonymous,
-          is_approved: true, // Auto-approve for now
-          tags: formData.tags
-        })
-        .select('id')
-        .single()
+          tags: formData.tags,
+          full_name: authorName,
+        }),
+      })
 
-      if (storyError) {
-        console.error('Error inserting story:', storyError)
-        throw new Error(`Failed to submit story: ${storyError.message}`)
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        throw new Error(errorBody?.error || 'Failed to submit story')
       }
+
+      const { authorName: responseAuthorName } = await response.json()
 
       setMessage({
         type: 'success',
-        text: `Story submitted successfully as ${isAnonymous ? 'Anonymous' : authorName}! It will be visible to other users shortly.`
+        text: `Story submitted successfully as ${isAnonymous ? 'Anonymous' : responseAuthorName || authorName}! It will be visible to other users shortly.`
       })
 
       // Reset form

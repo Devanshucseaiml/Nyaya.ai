@@ -120,6 +120,15 @@ CREATE POLICY "Users can delete own comment likes" ON comment_likes FOR DELETE U
 DROP POLICY IF EXISTS "Categories are viewable by everyone" ON story_categories;
 CREATE POLICY "Categories are viewable by everyone" ON story_categories FOR SELECT USING (true);
 
+-- Grant table privileges required by the app; RLS still controls row access.
+GRANT SELECT, INSERT, UPDATE, DELETE ON user_profiles TO authenticated, service_role;
+GRANT USAGE ON SCHEMA public TO authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON legal_stories TO authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON story_comments TO authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON story_likes TO authenticated, service_role;
+GRANT SELECT ON story_categories TO authenticated, service_role;
+GRANT SELECT ON story_category_mapping TO authenticated, service_role;
+
 -- 13. Create RLS Policies for story_category_mapping
 DROP POLICY IF EXISTS "Category mapping is viewable by everyone" ON story_category_mapping;
 CREATE POLICY "Category mapping is viewable by everyone" ON story_category_mapping FOR SELECT USING (true);

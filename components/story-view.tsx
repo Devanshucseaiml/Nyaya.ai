@@ -142,65 +142,32 @@ export default function StoryView({ story, comments, user, userLiked }: StoryVie
     setCommentError(null)
 
     try {
-      let userId = null
-      let commenterName = 'Anonymous Commenter'
-      let isAnonymous = true
+      const commenterName = !isAnonymousComment
+        ? user?.user_metadata?.full_name || user?.email || 'User'
+        : 'Anonymous Commenter'
+      const isAnonymous = isAnonymousComment
 
-      if (user && !isAnonymousComment) {
-        // User is logged in and doesn't want to be anonymous
-        // Use existing user profile or create one with their name
-        const { data: existingProfile, error: profileCheckError } = await supabase
-          .from('user_profiles')
-          .select('id, full_name')
-          .eq('id', user.id)
-          .single()
+      if (!user?.id) {
+        throw new Error('You must be signed in to add a comment.')
+      }
 
-        if (existingProfile) {
-          userId = existingProfile.id
-          commenterName = existingProfile.full_name || user.user_metadata?.full_name || 'User'
-          isAnonymous = false
-        } else {
-          // Create profile for logged-in user
-          const { data: profileData, error: profileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              id: user.id,
-              full_name: user.user_metadata?.full_name || 'User',
-              location: 'Unknown',
-              profession: 'User'
-            })
-            .select('id, full_name')
-            .single()
-
-          if (profileError) {
-            console.error('Error creating user profile:', profileError)
-            throw new Error(`Failed to create user profile: ${profileError.message}`)
-          }
-          
-          userId = profileData.id
-          commenterName = profileData.full_name
-          isAnonymous = false
-        }
-      } else {
-        // Anonymous comment - create temporary profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            full_name: 'Anonymous Commenter',
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .upsert(
+          {
+            id: user.id,
+            full_name: commenterName,
             location: 'Unknown',
-            profession: 'Commenter'
-          })
-          .select('id')
-          .single()
+            profession: 'Commenter',
+          },
+          { onConflict: 'id' },
+        )
+        .select('id, full_name')
+        .single()
 
-        if (profileError) {
-          console.error('Error creating user profile:', profileError)
-          throw new Error(`Failed to create user profile for comment: ${profileError.message}`)
-        }
-        
-        userId = profileData.id
-        commenterName = 'Anonymous Commenter'
-        isAnonymous = true
+      if (profileError) {
+        console.error('Error creating user profile:', profileError)
+        throw new Error(`Failed to create user profile for comment: ${profileError.message}`)
       }
 
       // Insert the comment
@@ -208,7 +175,7 @@ export default function StoryView({ story, comments, user, userLiked }: StoryVie
         .from('story_comments')
         .insert({
           story_id: story.id,
-          user_id: userId,
+          user_id: profileData.id,
           content: commentText.trim(),
           is_anonymous: isAnonymous,
           is_approved: true
@@ -230,7 +197,7 @@ export default function StoryView({ story, comments, user, userLiked }: StoryVie
       // Add the new comment to the local state
       const newComment = {
         ...commentData,
-        user_profiles: { full_name: commenterName }
+        user_profiles: { full_name: profileData.full_name }
       }
       
       setNewComments([newComment, ...newComments])

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 
+async function createBookmarkSessionClient() {
+  return createServerClient()
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { articleId } = await request.json()
@@ -9,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Article ID is required' }, { status: 400 })
     }
 
-    const supabase = await createServerClient()
+    const supabase = await createBookmarkSessionClient()
     
     // Get user from request
     const { data: { user } } = await supabase.auth.getUser()
@@ -18,52 +22,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if bookmark already exists
-    const { data: existingBookmark } = await supabase
+    const { data: removedBookmarks, error: deleteError } = await supabase
       .from('bookmarks')
-      .select('id')
+      .delete()
       .eq('user_id', user.id)
       .eq('article_id', articleId)
-      .single()
+      .select('id')
 
-    if (existingBookmark) {
-      // Remove bookmark if it exists
-      const { error: deleteError } = await supabase
-        .from('bookmarks')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('article_id', articleId)
+    if (deleteError) {
+      console.error('Error removing bookmark:', deleteError)
+      return NextResponse.json({ error: 'Failed to remove bookmark' }, { status: 500 })
+    }
 
-      if (deleteError) {
-        console.error('Error removing bookmark:', deleteError)
-        return NextResponse.json({ error: 'Failed to remove bookmark' }, { status: 500 })
-      }
-
+    if (removedBookmarks && removedBookmarks.length > 0) {
       return NextResponse.json({ 
         success: true, 
         action: 'removed',
         message: 'Bookmark removed successfully' 
       })
-    } else {
-      // Add bookmark if it doesn't exist
-      const { error: insertError } = await supabase
-        .from('bookmarks')
-        .insert({
-          user_id: user.id,
-          article_id: articleId
-        })
-
-      if (insertError) {
-        console.error('Error adding bookmark:', insertError)
-        return NextResponse.json({ error: 'Failed to add bookmark' }, { status: 500 })
-      }
-
-      return NextResponse.json({ 
-        success: true, 
-        action: 'added',
-        message: 'Bookmark added successfully' 
-      })
     }
+
+    const { error: insertError } = await supabase
+      .from('bookmarks')
+      .insert({
+        user_id: user.id,
+        article_id: articleId
+      })
+
+    if (insertError) {
+      console.error('Error adding bookmark:', insertError)
+      return NextResponse.json({ error: 'Failed to add bookmark' }, { status: 500 })
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      action: 'added',
+      message: 'Bookmark added successfully' 
+    })
 
   } catch (error) {
     console.error('Error handling bookmark:', error)
@@ -73,7 +68,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
+    const supabase = await createBookmarkSessionClient()
     
     // Get user from request
     const { data: { user } } = await supabase.auth.getUser()

@@ -79,6 +79,10 @@ CREATE INDEX IF NOT EXISTS idx_bookmarks_user_id ON bookmarks(user_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_article_id ON bookmarks(article_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_created_at ON bookmarks(created_at DESC);
 
+-- Grant table privileges required by Supabase authenticated users and server-side operations
+GRANT SELECT, INSERT, DELETE ON bookmarks TO authenticated;
+GRANT SELECT, INSERT, DELETE ON bookmarks TO service_role;
+
 -- ========================================
 -- 3. CHAT SESSIONS TABLE
 -- ========================================

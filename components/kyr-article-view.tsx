@@ -198,7 +198,7 @@ export default function KYRArticleView({ category, articleSlug }: KYRArticleView
         .select('id')
         .eq('user_id', user.id)
         .eq('article_id', articleId)
-        .single()
+        .maybeSingle()
 
       setIsBookmarked(!!bookmark)
     } catch (error) {
@@ -227,7 +227,8 @@ export default function KYRArticleView({ category, articleSlug }: KYRArticleView
       })
 
       if (!response.ok) {
-        throw new Error('Failed to toggle bookmark')
+        const errorBody = await response.json().catch(() => null)
+        throw new Error(errorBody?.error || 'Failed to toggle bookmark')
       }
 
       const result = await response.json()
